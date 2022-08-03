@@ -3,11 +3,11 @@ package areas;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Forrest extends Area {
+public class Forest extends Area {
 
-    public Forrest() {
+    public Forest() {
         this.setArticle("Der");
-        this.setName("Wald");
+        this.setName("wald");
 
         this.getReachableAreas().add("Das Haus");
 

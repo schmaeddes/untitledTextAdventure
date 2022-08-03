@@ -1,3 +1,6 @@
+import startup.Environment;
+import startup.LoadStuff;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -10,8 +13,10 @@ public class Main {
 
     public static void main(String[] args) {
 
-        String greenPrompt = TextColors.BLUE.colorize(">");
+        LoadStuff loadStuff = new LoadStuff();
+        loadStuff.load(environment);
 
+        String greenPrompt = TextColors.BLUE.colorize(">");
         Scanner scanner = new Scanner(System.in);
 
         while(true) {

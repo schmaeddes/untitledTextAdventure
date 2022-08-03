@@ -1,7 +1,5 @@
 package areas;
 
-import com.sun.tools.javac.Main;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,7 +7,7 @@ public class House extends Area {
 
     public House() {
         this.setArticle("Das");
-        this.setName("Haus");
+        this.setName("haus");
 
         this.getReachableAreas().add("Der Wald");
         this.getReachableAreas().add("Der See");
