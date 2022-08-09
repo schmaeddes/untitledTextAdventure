@@ -1,10 +1,11 @@
 package startup;
 
-import areas.Area;
-
 import java.util.List;
 
+import areas.Area;
+
 public class Environment {
+    public static final Environment instance = new Environment();
 
     private Area currentArea;
     private List<Area> gameAreas;

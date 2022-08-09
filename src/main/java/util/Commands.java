@@ -1,17 +1,20 @@
+package util;
+
 import areas.Area;
+import startup.Environment;
 
 public class Commands {
 
     public static void go(Area area) {
-        Main.environment.setArea(area);
+        Environment.instance.setArea(area);
         area.enterArea();
     }
 
     public static void info() {
         String infoText = TextColors.PURPLE.colorize("Du bist hier: " +
-                Main.environment.getCurrentArea().getNameWithArticle()) + "\n" +
+                Environment.instance.getCurrentArea().getNameWithArticle()) + "\n" +
                 "Du kannst folgende Bereiche von hier erreichen: " +
-                String.join(", ", Main.environment.getCurrentArea().getReachableAreas());
+                String.join(", ", Environment.instance.getCurrentArea().getReachableAreas());
 
         System.out.println(infoText);
     }

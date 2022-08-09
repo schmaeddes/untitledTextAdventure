@@ -1,5 +1,4 @@
-import org.w3c.dom.Text;
-
+package util;
 public enum TextColors {
 
     RESET("\u001B[0m"),
