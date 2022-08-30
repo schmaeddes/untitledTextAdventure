@@ -19,7 +19,7 @@ public class GameState {
     }
 
     public EntitySet searchForEntity(EntityDescription description) {
-        return new EntitySet(this.entities.stream().filter(e -> e.getId().equals(description.getMainWord())
+        return EntitySet.createTemporary(this.entities.stream().filter(e -> e.getId().equals(description.getMainWord())
                 && e.getAttributes().containsAll(description.getAttributes())).toList());
     }
 }

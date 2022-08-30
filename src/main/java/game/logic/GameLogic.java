@@ -2,11 +2,14 @@ package game.logic;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 
 import game.logic.actionsystem.Action;
+import game.logic.actionsystem.PlayerAction;
 import game.logic.actionsystem.actions.GoDirection;
 import game.logic.actionsystem.actions.Open;
 import game.logic.actionsystem.actions.TakeFrom;
@@ -20,6 +23,7 @@ public class GameLogic implements Closeable {
     private GameState state;
     private Entity player;
     private boolean discontinue = false;
+    private Map<String, List<PlayerAction>> playerActions = new HashMap<>();
 
     public GameLogic(Parser parser) {
         this.parser = parser;
@@ -160,6 +164,45 @@ public class GameLogic implements Closeable {
     public boolean canPlayerTake(Entity entity) {
         // TODO
         return true;
+    }
+
+    public void registerPlayerAction(PlayerAction action) {
+        List<PlayerAction> l = this.playerActions.get(action.getId());
+        if (l == null) {
+            this.playerActions.put(action.getId(), l = new LinkedList<>());
+        }
+        l.add(action);
+    }
+
+    /**
+     * Searches for the first player action that does not use any entity and
+     * executes it if one is found.
+     *
+     * @param id The action id
+     * @return <code>true</code>, if an action was found and executed
+     */
+    public boolean tryExecutePlayerAction(String id) {
+        return this.tryExecutePlayerAction(id, null);
+    }
+
+    /**
+     * Searches for the first player action that can operate on the given set of
+     * entities and executes it if one is found.
+     *
+     * @param id       The action id
+     * @param entities The entities on which the action shoud operate
+     * @return <code>true</code>, if an action was found and executed
+     */
+    public boolean tryExecutePlayerAction(String id, EntitySet entities) {
+        List<PlayerAction> l = this.playerActions.get(id);
+        if (l != null) {
+            for (PlayerAction a : l) {
+                if (a.tryExecute(null, entities, this)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     @Override
