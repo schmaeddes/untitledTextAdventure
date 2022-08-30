@@ -1,6 +1,5 @@
 package game.state;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,21 +23,16 @@ import game.logic.actionsystem.PlayerActionExecutor;
  * can store generic attributes.
  */
 public class Entity {
-    public record EntityConnection(Entity to, Entity associatedEntity) {
-    }
-
     private final String id;
-    private final Set<String> attributes = new HashSet<>();
-    private Entity location;
-    private boolean closed = false;
-    private final EntitySet contents;
-    private final Map<String, EntityConnection> connections = new HashMap<>();
-    private final Map<String, List<PlayerAction>> playerActions = new HashMap<>();
     final Set<EntitySet> containingPersistentSets = new HashSet<>();
+    private final Map<String, String> attributes = new HashMap<>();
+    private Entity location;
+    private final EntitySet contents;
+    private final Map<Entity, Entity> connections = new HashMap<>();
+    private final Map<String, List<PlayerAction>> playerActions = new HashMap<>();
 
-    public Entity(String id, String... attributes) {
+    public Entity(String id) {
         this.id = id;
-        this.attributes.addAll(Arrays.asList(attributes));
         this.contents = EntitySet.createPersistent(this.id + "::contents");
     }
 
@@ -46,30 +40,25 @@ public class Entity {
         return this.id;
     }
 
-    public Set<String> getAttributes() {
-        return Collections.unmodifiableSet(this.attributes);
+    public String getAttribute(String key) {
+        String value = this.attributes.get(key);
+        return value == null ? "" : value;
     }
 
-    public boolean addAttribute(String attribute) {
-        return this.attributes.add(attribute);
+    public boolean getBoolAttribute(String key) {
+        return Boolean.parseBoolean(this.getAttribute(key));
     }
 
-    public boolean removeAttribute(String attribute) {
-        return this.attributes.remove(attribute);
-    }
-
-    public void toggleAttribute(String attribute) {
-        if (!this.attributes.remove(attribute)) {
-            this.attributes.add(attribute);
+    public void setAttribute(String key, Object value) {
+        if (value == null) {
+            this.attributes.remove(key);
+        } else {
+            this.attributes.put(key, value.toString());
         }
     }
 
-    public void switchAttribute(String attr1, String attr2) {
-        if (this.attributes.remove(attr1)) {
-            this.attributes.add(attr2);
-        } else if (this.attributes.remove(attr2)) {
-            this.attributes.add(attr1);
-        }
+    public void removeAttribute(String key) {
+        this.setAttribute(key, null);
     }
 
     public void setLocation(Entity location) throws CircularLocationException {
@@ -88,16 +77,19 @@ public class Entity {
         }
     }
 
-    public boolean isClosed() {
-        return this.closed;
-    }
-
-    public void setClosed(boolean closed) {
-        this.closed = closed;
-    }
-
     public boolean contains(Entity other, boolean recursive) {
         return this.contents.getAll().stream().anyMatch(e -> e == other || (recursive && e.contains(other, true)));
+    }
+
+    public Entity createContainedEntity(GameLogic logic, String id) {
+        Entity e = logic.getState().createEntity(id);
+        try {
+            e.setLocation(this);
+        } catch (CircularLocationException ex) {
+            // should not happen
+            ex.printStackTrace();
+        }
+        return e;
     }
 
     public Entity getLocation() {
@@ -108,32 +100,31 @@ public class Entity {
         return this.contents.getAll();
     }
 
-    public void connectUnidirectional(String directionId, Entity to, Entity associatedEntity) {
-        this.connections.put(directionId, new EntityConnection(to, associatedEntity));
+    public void connectUnidirectional(Entity direction, Entity to) {
+        this.connections.put(direction, to);
     }
 
-    public void connectBidirectional(String dirIdFromThisToOther, Entity associatedEntity, String dirIdFromOtherToThis,
-            Entity to) {
-        this.connections.put(dirIdFromThisToOther, new EntityConnection(to, associatedEntity));
-        to.connections.put(dirIdFromOtherToThis, new EntityConnection(this, associatedEntity));
+    public void connectBidirectional(Entity dirFromThisToOther, Entity dirFromOtherToThis, Entity other) {
+        this.connections.put(dirFromThisToOther, other);
+        other.connections.put(dirFromOtherToThis, this);
     }
 
-    public void removeSingleConnection(String directionId) {
-        this.connections.remove(directionId);
+    public void removeSingleConnection(Entity direction) {
+        this.connections.remove(direction);
     }
 
-    public void removeBidirectionalConnection(String dirIdFromThisToOther, String dirIdFromOtherToThis) {
-        EntityConnection c = this.connections.remove(dirIdFromThisToOther);
-        if (c != null) {
-            c.to.connections.remove(dirIdFromOtherToThis);
+    public void removeBidirectionalConnection(Entity dirFromThisToOther, Entity dirFromOtherToThis) {
+        Entity other = this.connections.remove(dirFromThisToOther);
+        if (other != null && other.connections.get(dirFromOtherToThis) == this) {
+            other.connections.remove(dirFromOtherToThis);
         }
     }
 
-    public EntityConnection getConnection(String directionId) {
-        return this.connections.get(directionId);
+    public Entity getConnectedEntity(Entity direction) {
+        return this.connections.get(direction);
     }
 
-    public Set<String> getConnections() {
+    public Set<Entity> getConnectionDirections() {
         return Collections.unmodifiableSet(this.connections.keySet());
     }
 

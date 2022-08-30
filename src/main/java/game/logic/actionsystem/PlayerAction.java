@@ -116,7 +116,6 @@ public class PlayerAction {
         if (Arrays.stream(entitiesToUse).anyMatch(Objects::isNull)) {
             return false;
         }
-        this.executor.execute(logic, entitiesToUse);
-        return true;
+        return this.executor.execute(logic, entitiesToUse);
     }
 }

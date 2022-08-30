@@ -1,6 +1,5 @@
 import java.io.IOException;
 
-import javax.script.Invocable;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 
@@ -35,7 +34,6 @@ public class Main {
             e.printStackTrace();
         }
 
-        System.exit(0);
         Parser parser = new Parser();
         try (GameLogic logic = new GameLogic(parser)) {
             logic.loadGameState("games/damnCoolTextAdventureFTW.json");

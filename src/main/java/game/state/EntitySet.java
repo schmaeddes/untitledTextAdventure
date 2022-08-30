@@ -33,15 +33,12 @@ public class EntitySet {
     }
 
     private final String name;
-    private final Set<Entity> entities;
+    private final Set<Entity> entities = new HashSet<>();
     private final Map<String, List<PlayerAction>> playerActions = new HashMap<>();
 
     private EntitySet(String name, Collection<Entity> entities) {
         this.name = name;
-        this.entities = new HashSet<>(entities);
-        if (this.name != null) {
-            this.entities.forEach(e -> e.containingPersistentSets.add(this));
-        }
+        this.add(entities.toArray(new Entity[0]));
     }
 
     public boolean isEmpty() {
@@ -56,24 +53,20 @@ public class EntitySet {
         return this.entities.size();
     }
 
-    public boolean add(Entity entity) {
-        if (this.entities.add(entity)) {
-            if (this.name != null) {
-                entity.containingPersistentSets.add(this);
+    public void add(Entity... entities) {
+        for (Entity e : entities) {
+            if (this.entities.add(e) && this.name != null) {
+                e.containingPersistentSets.add(this);
             }
-            return true;
         }
-        return false;
     }
 
-    public boolean remove(Entity entity) {
-        if(this.entities.remove(entity)) {
-            if(this.name != null) {
-                entity.containingPersistentSets.remove(this);
+    public void remove(Entity... entities) {
+        for (Entity e : entities) {
+            if (this.entities.remove(e) && this.name != null) {
+                e.containingPersistentSets.remove(this);
             }
-            return true;
         }
-        return false;
     }
 
     public boolean contains(Entity entity) {

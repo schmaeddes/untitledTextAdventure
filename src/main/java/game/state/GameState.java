@@ -1,25 +1,22 @@
 package game.state;
 
-import java.util.LinkedList;
-import java.util.List;
-
-import game.logic.EntityDescription;
+import java.util.HashMap;
+import java.util.Map;
 
 public class GameState {
-    private final List<Entity> entities = new LinkedList<>();
+    private final Map<String, Entity> entities = new HashMap<>();
 
     public GameState() {
 
     }
 
-    public Entity createEntity(String id, String... attributes) {
-        Entity e = new Entity(id, attributes);
-        this.entities.add(e);
+    public Entity createEntity(String id) {
+        Entity e = new Entity(id);
+        this.entities.put(id, e);
         return e;
     }
 
-    public EntitySet searchForEntity(EntityDescription description) {
-        return EntitySet.createTemporary(this.entities.stream().filter(e -> e.getId().equals(description.getMainWord())
-                && e.getAttributes().containsAll(description.getAttributes())).toList());
+    public Entity getEntityById(String id) {
+        return this.entities.get(id);
     }
 }

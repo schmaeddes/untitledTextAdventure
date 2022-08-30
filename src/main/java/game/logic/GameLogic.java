@@ -6,13 +6,8 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Predicate;
 
-import game.logic.actionsystem.Action;
 import game.logic.actionsystem.PlayerAction;
-import game.logic.actionsystem.actions.GoDirection;
-import game.logic.actionsystem.actions.Open;
-import game.logic.actionsystem.actions.TakeFrom;
 import game.state.CircularLocationException;
 import game.state.Entity;
 import game.state.EntitySet;
@@ -35,135 +30,136 @@ public class GameLogic implements Closeable {
         // TODO setup code, load from json or so
         ////////////////////////////////////////////////////////////////////////
 
-        // final String NORTH = "north";
-        // final String SOUTH = "south";
-        final String EAST = "east";
-        final String WEST = "west";
-        final String INSIDE = "inside";
-        final String OUTSIDE = "outside";
+        Entity east = this.state.createEntity("east");
+        Entity west = this.state.createEntity("west");
+        Entity inside = this.state.createEntity("inside");
+        Entity outside = this.state.createEntity("outside");
+        EntitySet genericDirections = EntitySet.createPersistent("genericDirections");
+        genericDirections.add(east, west);
+        EntitySet houseDirections = EntitySet.createPersistent("houseDirections");
+        houseDirections.add(inside, outside);
 
         Entity forestPath01 = this.state.createEntity("forest_path_01");
         Entity clearing = this.state.createEntity("clearing");
         Entity houseOutside = this.state.createEntity("house_outside");
         Entity houseInside = this.state.createEntity("house_inside");
         Entity houseMainDoor = this.state.createEntity("house_main_door");
-        houseMainDoor.setClosed(true);
 
-        forestPath01.connectBidirectional(EAST, null, WEST, clearing);
-        forestPath01.connectBidirectional(WEST, null, EAST, houseOutside);
-        houseOutside.connectBidirectional(INSIDE, houseMainDoor, OUTSIDE, houseInside);
+        EntitySet locations = EntitySet.createPersistent("locations");
+        locations.add(forestPath01, clearing, houseInside, houseOutside);
 
-        this.player = this.state.createEntity("player");
-        Entity apple01 = this.state.createEntity("apple_01", "green");
-        Entity apple02 = this.state.createEntity("apple_02", "red");
+        forestPath01.connectBidirectional(east, west, clearing);
+        forestPath01.connectBidirectional(west, east, houseOutside);
+        houseOutside.connectBidirectional(inside, outside, houseInside);
 
-        this.player.setLocation(clearing);
-        apple01.setLocation(forestPath01);
-        apple02.setLocation(forestPath01);
+        this.player = clearing.createContainedEntity(this, "player");
+        Entity apple01 = forestPath01.createContainedEntity(this, "apple_01");
+        Entity apple02 = forestPath01.createContainedEntity(this, "apple_02");
 
-        ////////////////////////////////////////////////////////////////////////
-        // TODO game specific action parsers
-        ////////////////////////////////////////////////////////////////////////
+        EntitySet collectibles = EntitySet.createPersistent("collectibles");
+        collectibles.add(apple01, apple02);
 
-        this.parser.pushActionParser(userInput -> userInput.get(0).equals("go")
-                ? new GoDirection(userInput.size() < 2 ? null : userInput.get(1))
-                : null);
-        this.parser.pushActionParser(userInput -> {
-            if (userInput.get(0).equals("take")) {
-                int fromIdx = userInput.indexOf("from");
-                List<EntityDescription> whatToTake = this
-                        .parseDescriptionList(userInput.subList(1, fromIdx == -1 ? userInput.size() : fromIdx));
-                List<EntityDescription> whereToTakeFrom = fromIdx == -1 ? null
-                        : this.parseDescriptionList(userInput.subList(fromIdx + 1, userInput.size()));
-                return new TakeFrom(whatToTake, whereToTakeFrom);
-            } else {
-                return null;
+        collectibles.pushPlayerAction("take", (logic, args) -> {
+            Entity collectible = args[0];
+            if (logic.getPlayer().getLocation() == collectible.getLocation()) {
+                try {
+                    collectible.setLocation(logic.getPlayer());
+                    logic.printRaw("Du nimmst %s, du Schuft.\n", collectible);
+                } catch (CircularLocationException ex) {
+                    // Should not happpen
+                    ex.printStackTrace();
+                }
             }
+            return true;
         });
-        this.parser.pushActionParser(userInput -> {
-            if (userInput.get(0).equals("open")) {
-                return new Open(this.parseDescriptionList(userInput.subList(1, userInput.size())));
+
+        // this.player becomes first argument by calling pushPlayerAction on it
+        PlayerAction goAction = this.player.pushPlayerAction("go", (logic, args) -> {
+            Entity character = args[0];
+            Entity direction = args[1];
+            Entity newLocation = character.getLocation().getConnectedEntity(direction);
+            if (newLocation != null) {
+                try {
+                    logic.getPlayer().setLocation(newLocation);
+                    logic.printRaw("Du gehst Richtung %s und landest hier: %s, du Lutscher!\n", direction, newLocation);
+                } catch (CircularLocationException ex) {
+                    ex.printStackTrace();
+                }
             } else {
-                return null;
+                logic.printRaw("Hier geht es nicht nach %s, du Nichtsnutz.\n", direction);
             }
+            return true;
         });
+        // second argument must be exactly 1 of the entites contained in genericDirections
+        goAction.pushVaryingNeededEntites(genericDirections, 1);
+
+        // again first argument becomes this.player by calling pushPlayerAction on it
+        PlayerAction goHouseAction = this.player.pushPlayerAction("go", (logic, args) -> {
+            Entity character = args[0];
+            Entity direction = args[1];
+            Entity newLocation = character.getLocation().getConnectedEntity(direction);
+            if (newLocation != null && character.getLocation() == houseInside
+                    || character.getLocation() == houseOutside) {
+                if (houseMainDoor.getBoolAttribute("open")) {
+                    try {
+                        character.setLocation(newLocation);
+                    } catch (CircularLocationException ex) {
+                        ex.printStackTrace();
+                    }
+                    logic.printRaw("Du gehst durch die Tür, du Eumel.\n");
+                } else {
+                    logic.printRaw("Die Tür ist zu, du Dödel.\n");
+                }
+                return true;
+            }
+            return false;
+        });
+        // second argument must be exactly 1 of the entites contained in houseDirections
+        goHouseAction.pushVaryingNeededEntites(houseDirections, 1);
+
+        houseMainDoor.pushPlayerAction("open", (logic, args) -> {
+            if (logic.getPlayer().getLocation() == houseInside || logic.getPlayer().getLocation() == houseOutside) {
+                if (houseMainDoor.getBoolAttribute("open")) {
+                    logic.printRaw("Die Tür ist schon offen, du Hammel.\n");
+                } else {
+                    houseMainDoor.setAttribute("open", true);
+                    logic.printRaw("Du öffnest die Tür, du Dummbatz.\n");
+                }
+                return true;
+            }
+            return false;
+        });
+
+        houseMainDoor.pushPlayerAction("close", (logic, args) -> {
+            if (logic.getPlayer().getLocation() == houseInside || logic.getPlayer().getLocation() == houseOutside) {
+                if (!houseMainDoor.getBoolAttribute("open")) {
+                    logic.printRaw("Die Tür ist schon geschlossen, du Mummenschanz.\n");
+                } else {
+                    houseMainDoor.setAttribute("open", false);
+                    logic.printRaw("Du schließt die Tür, du Angsthase.\n");
+                }
+                return true;
+            }
+            return false;
+        });
+    }
+
+    public GameState getState() {
+        return this.state;
     }
 
     public Entity getPlayer() {
         return this.player;
     }
 
-    public EntitySet searchForEntity(EntityDescription description) {
-        return this.state.searchForEntity(description);
-    }
-
-    public EntitySet searchForEntity(EntityDescription description, Predicate<Entity> acceptFunction) {
-        return this.state.searchForEntity(description).getFiltered(acceptFunction);
-    }
-
-    public EntitySet searchForNearbyEntity(EntityDescription description) {
-        return this.searchForEntity(description, e -> {
-            if (this.player == null) {
-                return false;
-            } else if (this.player.contains(e, false)) {
-                return true;
-            } else if (this.player.getLocation() != null && this.player.getLocation().contains(e, false)) {
-                return true;
-            } else {
-                for (Entity.EntityConnection c : this.player.getLocation().getConnections().stream()
-                        .map(this.player.getLocation()::getConnection).toList()) {
-                    if (c.associatedEntity() == e) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        });
-    }
-
     public void mainLoop() {
         while (!this.discontinue) {
-            Action action = this.parser.readAction();
-            if (action != null) {
-                action.execute(this);
-            }
+            this.parser.executeUserInput(this);
         }
     }
 
-    private List<EntityDescription> parseDescriptionList(List<String> words) {
-        List<EntityDescription> descriptions = new LinkedList<>();
-        List<String> desc = new LinkedList<>();
-        for (String word : words) {
-            if (word.equals("and")) {
-                descriptions.add(new EntityDescription(desc));
-                desc = new LinkedList<>();
-            } else {
-                desc.add(word);
-            }
-        }
-        if (!desc.isEmpty()) {
-            descriptions.add(new EntityDescription(desc));
-        }
-        return descriptions;
-    }
-
-    public void printToUser(String messageId, Object... args) {
-        System.out.print(messageId);
-        for (int i = 0; i < args.length; ++i) {
-            System.out.print(i == 0 ? " " : ", ");
-            System.out.print(args[i]);
-        }
-        System.out.println();
-    }
-
-    public boolean canPlayerOpen(Entity entity) {
-        // TODO
-        return true;
-    }
-
-    public boolean canPlayerTake(Entity entity) {
-        // TODO
-        return true;
+    public void printRaw(String rawMessage, Object... args) {
+        System.out.printf(rawMessage, args);
     }
 
     public void registerPlayerAction(PlayerAction action) {

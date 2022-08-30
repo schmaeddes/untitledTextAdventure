@@ -7,7 +7,7 @@ import game.state.Entity;
  * A player action executor provides specific instructions how to manipulate the
  * game logic.
  */
-public class PlayerActionExecutor {
+public interface PlayerActionExecutor {
 
     /**
      * Executes the game logic manupulation.
@@ -15,7 +15,5 @@ public class PlayerActionExecutor {
      * @param logic The game logic
      * @param args  Arguments
      */
-    public void execute(GameLogic logic, Entity... args) {
-        // TODO
-    }
+    public boolean execute(GameLogic logic, Entity... args);
 }
