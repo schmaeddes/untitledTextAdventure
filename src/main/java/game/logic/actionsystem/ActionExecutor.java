@@ -4,16 +4,17 @@ import game.logic.GameLogic;
 import game.state.Entity;
 
 /**
- * A player action executor provides specific instructions how to manipulate the
- * game logic.
+ * An action executor provides specific instructions how to manipulate the game
+ * logic.
  */
-public interface PlayerActionExecutor {
+public interface ActionExecutor {
 
     /**
      * Executes the game logic manupulation.
      *
      * @param logic The game logic
+     * @param actor The actor
      * @param args  Arguments
      */
-    public boolean execute(GameLogic logic, Entity... args);
+    public boolean execute(GameLogic logic, Entity actor, Entity... args);
 }

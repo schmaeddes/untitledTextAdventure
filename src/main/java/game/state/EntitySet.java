@@ -3,42 +3,55 @@ package game.state;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
 
 import game.logic.GameLogic;
-import game.logic.actionsystem.PlayerAction;
-import game.logic.actionsystem.PlayerActionExecutor;
 
 public class EntitySet {
-    public static EntitySet createTemporary(Entity... entities) {
-        return new EntitySet(null, Arrays.asList(entities));
-    }
-
-    public static EntitySet createTemporary(Collection<Entity> entities) {
-        return new EntitySet(null, entities);
-    }
-
-    public static EntitySet createPersistent(String name, Entity... entities) {
-        return new EntitySet(name, Arrays.asList(entities));
-    }
-
-    public static EntitySet createPersistent(String name, Collection<Entity> entities) {
-        return new EntitySet(name, entities);
-    }
-
-    private final String name;
+    private final GameState gameState;
+    private final String id;
     private final Set<Entity> entities = new HashSet<>();
-    private final Map<String, List<PlayerAction>> playerActions = new HashMap<>();
 
-    private EntitySet(String name, Collection<Entity> entities) {
-        this.name = name;
-        this.add(entities.toArray(new Entity[0]));
+    /**
+     * Creates a persistent, named entity set. DO NOT CALL THIS CONSTRUCTOR
+     * DIRECTLY. Use {@link GameState#createEntitySet(String)} instead.
+     *
+     * @param state The game state to register the entity set to
+     * @param id    The entity set id
+     */
+    public EntitySet(GameState gameState, String id) {
+        this.gameState = gameState;
+        this.id = id;
+        this.gameState.registerEntitySet(this);
+    }
+
+    /**
+     * Creates a temporary entity set.
+     *
+     * @param entities Initial entities contained in the set
+     */
+    public EntitySet(Collection<Entity> entities) {
+        this.id = null;
+        this.gameState = null;
+        this.entities.addAll(entities);
+    }
+
+    /**
+     * Creates a temporary entity set.
+     *
+     * @param entities Initial entities contained in the set
+     */
+    public EntitySet(Entity... entities) {
+        this(Arrays.asList(entities));
+    }
+
+    public String getId() {
+        return this.id;
+    }
+
+    public boolean isPersistent() {
+        return this.id != null;
     }
 
     public boolean isEmpty() {
@@ -53,17 +66,21 @@ public class EntitySet {
         return this.entities.size();
     }
 
-    public void add(Entity... entities) {
+    public void add(Collection<Entity> entities) {
         for (Entity e : entities) {
-            if (this.entities.add(e) && this.name != null) {
+            if (this.entities.add(e) && this.id != null) {
                 e.containingPersistentSets.add(this);
             }
         }
     }
 
+    public void add(Entity... entities) {
+        this.add(Arrays.asList(entities));
+    }
+
     public void remove(Entity... entities) {
         for (Entity e : entities) {
-            if (this.entities.remove(e) && this.name != null) {
+            if (this.entities.remove(e) && this.id != null) {
                 e.containingPersistentSets.remove(this);
             }
         }
@@ -73,6 +90,18 @@ public class EntitySet {
         return this.entities.contains(entity);
     }
 
+    public Entity createEntity(String id) {
+        Entity e = this.gameState.createEntity(id);
+        this.add(e);
+        return e;
+    }
+
+    public Entity createEntity(String id, Entity location) throws CircularLocationException {
+        Entity e = this.createEntity(id);
+        e.setLocation(location);
+        return e;
+    }
+
     public Entity collapse(GameLogic logic) {
         if (this.entities.size() <= 1) {
             return this.entities.stream().findAny().orElse(null);
@@ -80,25 +109,5 @@ public class EntitySet {
             // TODO if more than 1 candidate, ask user to specify
             return this.entities.stream().findAny().orElse(null);
         }
-    }
-
-    public EntitySet getFiltered(Predicate<Entity> acceptFunction) {
-        return EntitySet.createTemporary(this.entities.stream().filter(acceptFunction).toList());
-    }
-
-    public PlayerAction pushPlayerAction(String id, PlayerActionExecutor executor) {
-        List<PlayerAction> l = this.playerActions.get(id);
-        if (l == null) {
-            this.playerActions.put(id, l = new LinkedList<>());
-        }
-        PlayerAction action = new PlayerAction(id, executor);
-        action.pushVaryingNeededEntites(this, 1);
-        l.add(action);
-        return action;
-    }
-
-    public List<PlayerAction> getPlayerActions(String id) {
-        List<PlayerAction> l = this.playerActions.get(id);
-        return l == null ? Collections.emptyList() : Collections.unmodifiableList(this.playerActions.get(id));
     }
 }

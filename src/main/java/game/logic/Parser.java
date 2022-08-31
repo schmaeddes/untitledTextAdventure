@@ -22,7 +22,7 @@ public class Parser implements Closeable {
 
         String greenPrompt = TextColors.BLUE.colorize(">");
         System.out.printf("%s ", greenPrompt);
-        List<String> input = Arrays.stream(scanner.nextLine().split("\\s+")).map(String::toLowerCase).toList();
+        List<String> input = Arrays.asList(scanner.nextLine().split("\\s+"));
         if (!input.isEmpty()) {
             String actionId = input.get(0);
             List<Entity> args = new ArrayList<>(input.size() - 1);
@@ -34,21 +34,10 @@ public class Parser implements Closeable {
                 }
                 args.add(e);
             }
-            Entity primaryEntity = this.getPrimaryEntity(logic, actionId, args);
-            if (primaryEntity != null) {
-                primaryEntity.tryExecutePlayerAction(actionId, EntitySet.createTemporary(args), logic);
-            } else if(logic.tryExecutePlayerAction(actionId, EntitySet.createTemporary(args))) {
+            if (!logic.tryExecuteAction(actionId, logic.getPlayer(), new EntitySet(args))) {
                 logic.printRaw("Das geht doch so nicht.\n", args);
             }
         }
-    }
-
-    private Entity getPrimaryEntity(GameLogic logic, String actionId, List<Entity> arguments) {
-        return switch (actionId) {
-            case "go" -> logic.getPlayer();
-            case "take", "open", "close" -> arguments.remove(0);
-            default -> null;
-        };
     }
 
     public void parse(List<String> parameter) {
